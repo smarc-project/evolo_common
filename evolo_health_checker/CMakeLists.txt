@@ -1,15 +1,15 @@
 cmake_minimum_required(VERSION 3.8)
-project(sbg_to_odom)
+project(evolo_health_checker)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# find_package(GTSAM REQUIRED)
+#find_package(GTSAM REQUIRED)
 find_package(PkgConfig)
-pkg_search_module(Eigen3 REQUIRED eigen3)
+#pkg_search_module(Eigen3 REQUIRED eigen3)
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};/usr/share/cmake/geographiclib")
-find_package(GeographicLib REQUIRED)
+#find_package(GeographicLib REQUIRED)
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
@@ -20,11 +20,12 @@ find_package(std_msgs REQUIRED)
 find_package(sbg_driver REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
-find_package(geographic_msgs REQUIRED)
+find_package(evolo_msgs REQUIRED)
+find_package(smarc_msgs REQUIRED)
 
-add_executable(sbg_nav_to_evolo_odom src/sbg_nav_to_evolo_odom.cpp)
-target_include_directories(sbg_nav_to_evolo_odom PUBLIC ./include/${GeographicLib_INCLUDE_DIRS})
-target_link_libraries(sbg_nav_to_evolo_odom
+add_executable(evolo_health_checker src/evolo_health_checker.cpp)
+# target_include_directories(evolo_health_checker PUBLIC ./include/${GeographicLib_INCLUDE_DIRS})
+target_link_libraries(evolo_health_checker
   rclcpp::rclcpp
   ${nav_msgs_TARGETS}
   ${geometry_msgs_TARGETS}
@@ -32,13 +33,12 @@ target_link_libraries(sbg_nav_to_evolo_odom
   ${sbg_driver_TARGETS}
   ${tf2_TARGETS}
   ${tf2_ros_TARGETS}
-  ${GeographicLib_LIBRARIES}
-  ${geographic_msgs_TARGETS}
-  Eigen3::Eigen
+  ${smarc_msgs_TARGETS}
+  ${evolo_msgs_TARGETS}
   )
 
 install(TARGETS
-  sbg_nav_to_evolo_odom
+  evolo_health_checker
   DESTINATION lib/${PROJECT_NAME}
   )
 

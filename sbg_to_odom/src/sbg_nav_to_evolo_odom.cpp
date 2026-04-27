@@ -20,9 +20,11 @@
 #include "nav_msgs/msg/odometry.hpp"
 #include "geometry_msgs/msg/point.hpp"
 #include "geometry_msgs/msg/quaternion.hpp"
+#include "geographic_msgs/msg/geo_point.hpp"
 
 #include "sbg_driver/msg/sbg_ekf_quat.hpp"
 #include "sbg_driver/msg/sbg_ekf_nav.hpp"
+#include "sbg_driver/msg/sbg_imu_data.hpp"
 
 #include "GeographicLib/UTMUPS.hpp"
 
@@ -32,15 +34,22 @@ class SbgToOdom : public rclcpp::Node {
  public:
   SbgToOdom() : Node("sbg_nav_to_odom") {
     odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(
-        "evolo/smarc/odom", 10);
+        "smarc/odom", 10);
+    
+    latlon_pub_ = this->create_publisher<geographic_msgs::msg::GeoPoint>(
+        "smarc/latlon", 10);
 
     sbg_nav_sub_ = this->create_subscription<sbg_driver::msg::SbgEkfNav>(
-        "/sbg/ekf_nav", 10,
+        "sbg/ekf_nav", 10,
         std::bind(&SbgToOdom::SbgNavCallback, this, std::placeholders::_1));
 
     sbg_quat_sub_ = this->create_subscription<sbg_driver::msg::SbgEkfQuat>(
-        "/sbg/ekf_quat", 10,
+        "sbg/ekf_quat", 10,
         std::bind(&SbgToOdom::SbgQuatCallback, this, std::placeholders::_1));
+
+    sbg_imu_sub_ = this->create_subscription<sbg_driver::msg::SbgImuData>(
+        "sbg/imu_data", 10,
+        std::bind(&SbgToOdom::SbgImuCallback, this, std::placeholders::_1));
 
     // Timer for checking for and publishing updates..
     target_timer_ = this->create_wall_timer(
@@ -63,8 +72,22 @@ class SbgToOdom : public rclcpp::Node {
   double y_utm_offset_;  // Y offset from utm->evolo/odom.
   bool utm_init_ = false;
 
-  double x_vel;  // SBG's X velocity.
-  double y_vel;  // SBG's Y velocity.
+  double x_vel;  // X velocity in body frame.
+  double y_vel;  // Y velocity in body frame.
+  double z_vel;  // Z velocity in body frame.
+
+  double rot_x; // rotation around x (body frame)
+  double rot_y; // rotation around y (body frame)
+  double rot_z; // rotation around z (body frame)
+
+  double sbg_qx; //quaterion in NED frame
+  double sbg_qy; //quaterion in NED frame
+  double sbg_qz; //quaterion in NED frame
+  double sbg_qw; //quaterion in NED frame
+
+  double latitude_;
+  double longitude_;
+  double altitude_;
 
   // Quat for odometry message.
   geometry_msgs::msg::Quaternion quat_msg;
@@ -77,15 +100,17 @@ class SbgToOdom : public rclcpp::Node {
   std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
   std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
-    // TODO: NED->ENU rotation.
-    //const gtsam::Rot3 ned_to_enu_ = gtsam::Rot3::RzRyRx(-M_PI / 2.0, 0.0, M_PI);
-    Eigen::Matrix3d R_NED_to_ENU = (Eigen::Matrix3d() << 0, 1, 0,
-                                                         1, 0, 0,
-                                                         0, 0, -1).finished();
+  Eigen::Matrix3d R_NED_to_ENU = (Eigen::Matrix3d() << 0, 1, 0,
+                                                        1, 0, 0,
+                                                        0, 0, -1).finished();
+  Eigen::Matrix3d R_SBG_to_ROS =
+      Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitX()).toRotationMatrix();
 
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
+  rclcpp::Publisher<geographic_msgs::msg::GeoPoint>::SharedPtr latlon_pub_;
   rclcpp::Subscription<sbg_driver::msg::SbgEkfNav>::SharedPtr sbg_nav_sub_;
   rclcpp::Subscription<sbg_driver::msg::SbgEkfQuat>::SharedPtr sbg_quat_sub_;
+  rclcpp::Subscription<sbg_driver::msg::SbgImuData>::SharedPtr sbg_imu_sub_;
 
   rclcpp::TimerBase::SharedPtr target_timer_;
 
@@ -97,67 +122,65 @@ class SbgToOdom : public rclcpp::Node {
 
     header_msg = msg->header;
 
+    latitude_ = msg->latitude;
+    longitude_ = msg->longitude;
+    altitude_ = 0.0 /*msg->altitude*/;
+
     // Get lat/lon in UTM
     int zone;
     bool northp;
     GeographicLib::UTMUPS::Forward(msg->latitude, msg->longitude, zone, northp,
                                     x_, y_);
-    std::cout << "Position in UTM " << x_ << " " << y_ << "\n";
-    std::cout << "UTM offset " << x_utm_offset_ << " " << y_utm_offset_ << "\n";
-
     x_ -= x_utm_offset_;
     y_ -= y_utm_offset_;
 
     pos_msg.x = x_;
     pos_msg.y = y_;
     pos_msg.z = 0.0;
+
+    Eigen::Vector3d velocity_global(msg->velocity.x,
+                                    msg->velocity.y,
+                                    msg->velocity.z); // velocity in global frame
+
+    Eigen::Quaterniond evolo_rotion_NED(sbg_qw,
+                                        sbg_qx,
+                                        sbg_qy,
+                                        sbg_qz);  // current roation
+
+    Eigen::Vector3d velocity_body_frame = evolo_rotion_NED.inverse() * velocity_global;
+
+    x_vel = velocity_body_frame.x();
+    y_vel = -velocity_body_frame.y(); // Convert from ENU to NED
+    z_vel = -velocity_body_frame.z(); // Convert from ENU to NED
   }
 
   // -----------------------------------------------------------------------
   void SbgQuatCallback(const sbg_driver::msg::SbgEkfQuat::SharedPtr msg) {
-    double qx = msg->quaternion.x;
-    double qy = msg->quaternion.y;
-    double qz = msg->quaternion.z;
-    double qw = msg->quaternion.w;
-
-    //std::cout << "SBG quat received "<< std::endl;
-    
-    // TODO: NED->ENU rotation.
-    //const gtsam::Rot3 ned_to_enu_ = gtsam::Rot3::RzRyRx(-M_PI / 2.0, 0.0, M_PI);
-
-
+    sbg_qx = msg->quaternion.x;
+    sbg_qy = msg->quaternion.y;
+    sbg_qz = msg->quaternion.z;
+    sbg_qw = msg->quaternion.w;
     // Convert quaternion to rotation matrix
-    Eigen::Quaterniond ned_to_sbg(qw, qx, qy, qz);
-    Eigen::Matrix3d rotationMatrix = ned_to_sbg.toRotationMatrix();
+    Eigen::Quaterniond ned_to_sbg(sbg_qw, sbg_qx, sbg_qy, sbg_qz);
+    ned_to_sbg.normalize();
+    Eigen::Matrix3d R_sbg = ned_to_sbg.toRotationMatrix();
 
-    // Apply the transformation matrix to the rotation matrix
-    Eigen::Matrix3d newRotationMatrix = R_NED_to_ENU.inverse() * rotationMatrix;// * R_NED_to_ENU.transpose();
+    Eigen::Matrix3d R_ros = R_NED_to_ENU * R_sbg * R_SBG_to_ROS;
 
-    // Convert back to a quaternion in the ENU frame
-    Eigen::Quaterniond q_ENU(newRotationMatrix);
+    Eigen::Quaterniond q_ros(R_ros);
+    q_ros.normalize();
 
-    //for reference
-    //const gtsam::Rot3 ned_to_sbg = gtsam::Rot3::Quaternion(qw, qx, qy, qz);
-    //const gtsam::Rot3 enu_to_sbg = ned_to_enu_.inverse() * ned_to_sbg;
-    //const gtsam::Quaternion quat = enu_to_sbg.toQuaternion();
-    //this->quat_msg.x = enu_to_sbg.x();
-    //this->quat_msg.y = enu_to_sbg.y();
-    //this->quat_msg.z = enu_to_sbg.z();
-    //this->quat_msg.w = enu_to_sbg.w();
+    this->quat_msg.x = q_ros.x();
+    this->quat_msg.y = q_ros.y();
+    this->quat_msg.z = q_ros.z();
+    this->quat_msg.w = q_ros.w();
+  }
 
-    //this->quat_msg.x = q_ENU.x();
-    //this->quat_msg.y = q_ENU.y();
-    //this->quat_msg.z = q_ENU.z();
-    //this->quat_msg.w = q_ENU.w();
-
-    this->quat_msg.x= msg->quaternion.x;
-    this->quat_msg.y= msg->quaternion.y;
-    this->quat_msg.z= msg->quaternion.z;
-    this->quat_msg.w= msg->quaternion.w;
-
-    //TODO velocities
-
-
+  // -----------------------------------------------------------------------
+  void SbgImuCallback(const sbg_driver::msg::SbgImuData::SharedPtr msg) {
+    rot_x = msg->gyro.x;
+    rot_y =  - msg->gyro.y; // * -1 because imu data is in  NED and we want it in ENU
+    rot_z =  - msg->gyro.z; // * -1 because imu data is in  NED and we want it in ENU
   }
 
   // -----------------------------------------------------------------------
@@ -181,10 +204,26 @@ class SbgToOdom : public rclcpp::Node {
   nav_msgs::msg::Odometry OdomToMessage() {
     nav_msgs::msg::Odometry msg;
     msg.header = header_msg;
-    msg.header.frame_id = "/evolo/odom";
+    msg.header.frame_id = "evolo/odom";
     msg.child_frame_id = "evolo/base_link";
     msg.pose.pose.position = pos_msg;
     msg.pose.pose.orientation = quat_msg;
+    msg.twist.twist.linear.x = x_vel;
+    msg.twist.twist.linear.y = y_vel;
+    msg.twist.twist.linear.z = z_vel;
+    msg.twist.twist.angular.x = rot_x;
+    msg.twist.twist.angular.y = rot_y;
+    msg.twist.twist.angular.z = rot_z;
+    return msg;
+  }
+
+  // -----------------------------------------------------------------------
+  geographic_msgs::msg::GeoPoint LatLonToMessage() {
+    geographic_msgs::msg::GeoPoint msg;
+    msg.latitude = latitude_;
+    msg.longitude = longitude_;
+    msg.altitude = altitude_;
+
     return msg;
   }
 
@@ -194,6 +233,8 @@ class SbgToOdom : public rclcpp::Node {
       getUtmOffset();
     }
     odom_pub_->publish(OdomToMessage());
+
+    latlon_pub_->publish(LatLonToMessage());
 
     //Broadcast base_link transform
     geometry_msgs::msg::TransformStamped t;
@@ -222,7 +263,7 @@ class SbgToOdom : public rclcpp::Node {
 int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
 
-  std::cout << "Starting fake target publisher.\n";
+  std::cout << "Starting evolo odom publisher.\n";
   rclcpp::spin(std::make_shared<SbgToOdom>());
 
   rclcpp::shutdown();
