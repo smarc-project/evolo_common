@@ -10,21 +10,18 @@ def generate_launch_description():
     robot_ns = LaunchConfiguration('robot_name')
 
     robot_ns_launch_arg = DeclareLaunchArgument('robot_name',
-                                                default_value='')
+                                                default_value='evolo')
 
-    camcmd_publish_topic = evoloTopics.EVOLO_ROS_GIMBAL_CAMCMD
     string_subscribe_topic = evoloTopics.EVOLO_MQTT_GIMBAL_CAMCMD
 
     json_bridge_node = Node(package='evolo_gimbal_remote_control',
                             namespace=robot_ns,
-                            executable='gimbal_camera_remote_node',
-                            name='gimbal_camera_remote_node',
+                            executable='gimbal_action_client.py',
+                            name='gimbal_action_clients',
                             output='screen',
                             parameters=[{
-                                'string_input_topic':
+                                'input_topic':
                                 string_subscribe_topic,
-                                'camcmd_output_topic':
-                                camcmd_publish_topic,
                             }])
 
     return LaunchDescription([

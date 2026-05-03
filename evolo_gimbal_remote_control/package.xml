@@ -15,8 +15,6 @@
   <depend>rclcpp</depend>
   <depend>std_msgs</depend>
   <depend>evolo_msgs</depend>
-  <depend>nlohmann_json</depend>
-  <depend>z1_pro_msgs</depend>
 
   <export>
     <build_type>ament_cmake</build_type>
