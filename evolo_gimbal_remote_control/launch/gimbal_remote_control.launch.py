@@ -12,7 +12,8 @@ def generate_launch_description():
     robot_ns_launch_arg = DeclareLaunchArgument('robot_name',
                                                 default_value='evolo')
 
-    string_subscribe_topic = evoloTopics.EVOLO_MQTT_GIMBAL_CAMCMD
+    #string_subscribe_topic = evoloTopics.EVOLO_MQTT_GIMBAL_CAMCMD
+    string_subscribe_topic = "waraps/sensor/camera/command"
 
     json_bridge_node = Node(package='evolo_gimbal_remote_control',
                             namespace=robot_ns,
