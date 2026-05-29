@@ -8,12 +8,14 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(evolo_msgs REQUIRED)
+find_package(z1_pro_msgs REQUIRED)
 
 
 
 # To install python nodes.
 install(PROGRAMS 
   scripts/gimbal_action_client.py
+  scripts/gimbal_json_publisher.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
