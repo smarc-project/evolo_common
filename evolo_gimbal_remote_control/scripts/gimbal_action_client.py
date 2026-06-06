@@ -88,7 +88,7 @@ class Camera_control_client:
         self._node.get_logger().info(f"Setup success: {setup_success}")
 
         #Run Action clients here for better luck with thread problems
-        self.timer = self._node.create_timer(5.0,self.timer_callback)
+        self.timer = self._node.create_timer(0.5,self.timer_callback)
 
 
     def timer_callback(self):

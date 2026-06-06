@@ -14,13 +14,13 @@ import serial
 
 
 
-class Mqtt_bridge(Node):
+class Serial_bridge(Node):
 
     def __init__(self):
         super().__init__('read_and_publish')
 
 
-        self.ser = serial.Serial('/dev/ttyUSB0', 115200, timeout=1)  # open serial port
+        self.ser = serial.Serial('/dev/ttyUSB1', 115200, timeout=1)  # open serial port
 
         # Create ROS publisher
         self.publisher_ = self.create_publisher(String, evoloTopics.EVOLO_CAPTAIN_FROM, 10)
@@ -63,7 +63,7 @@ def main(args=None):
 
     rclpy.init(args=args)
 
-    minimal_publisher = Mqtt_bridge()
+    minimal_publisher = Serial_bridge()
 
     rclpy.spin(minimal_publisher)
 
