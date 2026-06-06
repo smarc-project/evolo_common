@@ -40,7 +40,7 @@ class Evolo_captain_interface(Node):
         self.steering_sub = self.create_subscription(Float32, evoloTopics.EVOLO_STEERING_SETPOINT, self.steer_control_callback,10)
         self.speed_sub = self.create_subscription(Float32, evoloTopics.EVOLO_SPEED_SETPOINT, self.speed_control_callback,10)
 
-        timer_period = 1/2  # seconds
+        timer_period = 1/3  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
     def time_now(self):
