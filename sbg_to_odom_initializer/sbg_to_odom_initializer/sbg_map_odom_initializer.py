@@ -67,6 +67,9 @@ class MapOdomInitializer(Node):
             return
         
         #TODO check if sbg pos is valid /aligned
+        if msg.status.solution_mode != 4:
+            self._log("Waiting for valid SBG solution..")
+            return
         
         captain_latitude = msg.latitude
         captain_longitude = msg.longitude
