@@ -18,6 +18,7 @@
 #include "geometry_msgs/msg/point.hpp"
 #include "geometry_msgs/msg/quaternion.hpp"
 
+#include "smarc_msgs/msg/geofence_status_stamped.hpp"
 #include "smarc_msgs/msg/topics.hpp"
 #include "evolo_msgs/msg/topics.hpp"
 #include "evolo_msgs/msg/captain_state.hpp"
@@ -90,7 +91,10 @@ class HealthChecker : public rclcpp::Node {
       "/evolo/captain/state", 10, std::bind(&HealthChecker::captainStateCallback, this, std::placeholders::_1)
     );
 
-    //Lidar sub
+    //Geofence sub
+    _geofence_sub = this->create_subscription<smarc_msgs::msg::GeofenceStatusStamped>(
+      smarc_msgs::msg::Topics::GEOFENCE_STATUS_TOPIC, 10, 
+      std::bind(&HealthChecker::geofenceCallback, this, std::placeholders::_1));
 
 
     // Occupancy grid
@@ -122,6 +126,7 @@ class HealthChecker : public rclcpp::Node {
   rclcpp::Subscription<sbg_driver::msg::SbgEkfNav>::SharedPtr _sbg_nav_sub;
   rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr _grid_sub;
   rclcpp::Subscription<evolo_msgs::msg::CaptainState>::SharedPtr _captain_state_sub;
+  rclcpp::Subscription<smarc_msgs::msg::GeofenceStatusStamped>::SharedPtr _geofence_sub;
 
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_{nullptr};
   std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
@@ -149,6 +154,10 @@ class HealthChecker : public rclcpp::Node {
   bool map_received = false;
   bool map_updated = false;
 
+  smarc_msgs::msg::GeofenceStatusStamped geofence_message;
+  bool geofence_received = false;
+  bool geofence_updated = false;
+
   //Error buckets
   ErrorBucket odom_value_error_bucket;
   ErrorBucket odom_time_error_bucket;
@@ -161,6 +170,8 @@ class HealthChecker : public rclcpp::Node {
 
   ErrorBucket map_value_error_bucket;
   ErrorBucket map_time_error_bucket;
+
+  ErrorBucket geofence_time_error_bucket;
 
 
   // -----------------------------------------------------------------------
@@ -191,6 +202,13 @@ class HealthChecker : public rclcpp::Node {
     captain_updated = true;
   }
 
+  void geofenceCallback(const smarc_msgs::msg::GeofenceStatusStamped msg) {
+    //std::cout << "Geofence callback \n";
+    geofence_message = msg;
+    geofence_received = true;
+    geofence_updated = true;
+  }
+
   // -----------------------------------------------------------------------
   void timer_callback() {
     
@@ -202,7 +220,7 @@ class HealthChecker : public rclcpp::Node {
     {
       std::cout << "NOT READY" << std::endl;
       std_msgs::msg::Int8 msg;
-      msg.data = 1; //Not ready
+      msg.data = smarc_msgs::msg::Topics::VEHICLE_HEALTH_WAITING;
       _health_pub->publish(msg);
       return;
     }
@@ -212,6 +230,7 @@ class HealthChecker : public rclcpp::Node {
     bool timeout_error = false;
     if(!odom_time_error_bucket.update(odom_updated)) { timeout_error = true; std::cout << "TIMEOUT_ERROR: Odometry" << std::endl; }
     if(!ekfNav_time_error_bucket.update(ekfNav_updated))  { timeout_error = true; std::cout << "TIMEOUT_ERROR: EkfNav" << std::endl; }
+    if(!geofence_time_error_bucket.update(geofence_updated))  { timeout_error = true; std::cout << "TIMEOUT_ERROR: Geofence" << std::endl; }
     //if(!map_time_error_bucket.update(map_updated)  { timeout_error = true; std::cout << "TIMEOUT_ERROR: Odometry" << std::endl; }
     //if(!captainState_time_error_bucket.update(captain_updated)) { timeout_error = true; std::cout << "TIMEOUT_ERROR: CaptainState" << std::endl; }
         
@@ -220,18 +239,34 @@ class HealthChecker : public rclcpp::Node {
       //Timeout error
       std::cout << "Timout error" << std::endl;
       std_msgs::msg::Int8 msg;
-      msg.data = 2; //ERROR
+      msg.data = smarc_msgs::msg::Topics::VEHICLE_HEALTH_ERROR; //ERROR
       _health_pub->publish(msg);
       return;
     }
     
-    //TODO data checks
+    std_msgs::msg::Int8 health_msg;
+    health_msg.data = smarc_msgs::msg::Topics::VEHICLE_HEALTH_READY; //All good
+
+    //Data checks
+    //Outside geofence
+    if (geofence_message.status == geofence_message.STATUS_OUTSIDE) {
+      health_msg.data = smarc_msgs::msg::Topics::VEHICLE_HEALTH_ERROR; //All bad
+      std::cout << "Outsude Geofence" << std::endl;
+    }
+    else if (geofence_message.status == smarc_msgs::msg::GeofenceStatusStamped::STATUS_INACTIVE) {
+      float vx = odom_message.twist.twist.linear.x;
+      float vy = odom_message.twist.twist.linear.y;
+      float speed = sqrt(vx*vx + vy*vy);
+      if(speed > 1.0) {
+        std::cout << "Too fast without active geofence" << std::endl;
+        health_msg.data = smarc_msgs::msg::Topics::VEHICLE_HEALTH_ERROR; //All bad
+      }
+    }
 
 
-    std::cout << "All is good" << std::endl;
-    std_msgs::msg::Int8 msg;
-    msg.data = 0; //All good
-    _health_pub->publish(msg);
+    //std::cout << "All is good" << std::endl;
+    
+    _health_pub->publish(health_msg);
 
 
     //reset variables
@@ -239,6 +274,7 @@ class HealthChecker : public rclcpp::Node {
     ekfNav_updated = false;
     map_updated = false;
     captain_updated = false;
+    geofence_updated = false;
   }
 };
 
