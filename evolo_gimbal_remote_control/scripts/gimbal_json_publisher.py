@@ -69,6 +69,7 @@ class GimbalJsonPublisher(Node):
             "latitude":  msg.geopoint_poi.latitude,
             "longitude": msg.geopoint_poi.longitude,
             "altitude":  msg.geopoint_poi.altitude,
+            "recording": int(msg.gcudata.recording),
         }
 
         out = String()

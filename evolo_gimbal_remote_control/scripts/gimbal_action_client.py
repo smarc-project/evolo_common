@@ -27,8 +27,9 @@
 # }
 # ros2 topic pub /cam_ctrl_input_topic std_msgs/msg/String data:\ \'\{\"mode\":\"STOP\"}\'\
 #
-#
-#
+# Internal camera recording control (no-op if already in desired state):
+# {"record": "on"}
+# {"record": "off"}
 
 import json
 import rclpy
@@ -38,6 +39,7 @@ from std_msgs.msg import String
 from smarc_action_base.smarc_action_base import ActionClientState, ActionType
 from wasp_bt.bt.client import BTActionClient
 from smarc_msgs.action import BaseAction
+from z1_pro_msgs.msg import Topics as Z1Topics
 
 
 
@@ -66,6 +68,12 @@ class Camera_control_client:
         self.gimbal_track_odom_poi_ac = BTActionClient(node=self._node, action_name='gimbal_track_odom_poi', action_type=ActionType(BaseAction))
         self.gimbal_stop_ac = BTActionClient(node=self._node, action_name='gimbal_stop', action_type=ActionType(BaseAction))
 
+        # Action clients for recording control.
+        # These call the gimbal_record_on / gimbal_record_off action servers
+        # in gimbal_action.py
+        self.gimbal_record_on_ac  = BTActionClient(node=self._node, action_name=Z1Topics.GIMBAL_RECORD_ON_ACTION,  action_type=ActionType(BaseAction))
+        self.gimbal_record_off_ac = BTActionClient(node=self._node, action_name=Z1Topics.GIMBAL_RECORD_OFF_ACTION, action_type=ActionType(BaseAction))
+
         #Yolo action servers?
         self.yolo_classes_ac = BTActionClient(node=self._node, action_name='yolo_set_classes', action_type=ActionType(BaseAction))
         self.yolo_threshold_ac = BTActionClient(node=self._node, action_name='yolo_set_threshold', action_type=ActionType(BaseAction))
@@ -78,6 +86,8 @@ class Camera_control_client:
                                 self.gimbal_track_img_poi_ac,
                                 self.gimbal_track_odom_poi_ac,
                                 self.gimbal_stop_ac,
+                                self.gimbal_record_on_ac,
+                                self.gimbal_record_off_ac,
                                 self.yolo_classes_ac,
                                 self.yolo_threshold_ac,
                                 self.yolo_track_id_ac
@@ -150,6 +160,35 @@ class Camera_control_client:
                         self._node.get_logger().error("Unknown camera command")
                 except Exception as e:
                     self._node.get_logger().error(f"Falied to set goal: {e}")
+
+            # Recording control.
+            # The "record" key can appear alongside "mode" in the same message,
+            # e.g. {"mode": "STOP", "record": "off"}
+            if "record" in self.json_cmd.keys():
+                record_cmd = self.json_cmd["record"]
+                try:
+                    if record_cmd == "on":
+                        # Call gimbal_record_on action server (no-op if already recording)
+                        _goal = self._set_goal(self.gimbal_record_on_ac, {})
+                        try:
+                            self.gimbal_record_on_ac.send_goal(_goal)
+                            self._node.get_logger().info(f"Set goal for {self.gimbal_record_on_ac.action_type}.")
+                        except Exception as e:
+                            self._node.get_logger().error(f"Error sending goal to AC {self.gimbal_record_on_ac.action_type} : {e}.")
+
+                    elif record_cmd == "off":
+                        # Call gimbal_record_off action server (no-op if already stopped)
+                        _goal = self._set_goal(self.gimbal_record_off_ac, {})
+                        try:
+                            self.gimbal_record_off_ac.send_goal(_goal)
+                            self._node.get_logger().info(f"Set goal for {self.gimbal_record_off_ac.action_type}.")
+                        except Exception as e:
+                            self._node.get_logger().error(f"Error sending goal to AC {self.gimbal_record_off_ac.action_type} : {e}.")
+
+                    else:
+                        self._node.get_logger().error(f"Unknown record command: '{record_cmd}'. Expected 'on' or 'off'.")
+                except Exception as e:
+                    self._node.get_logger().error(f"Failed to handle record command: {e}")
         
             #Yolo detection settings
             if("detect" in self.json_cmd.keys()):
