@@ -28,6 +28,7 @@ setup(
     entry_points={
         'console_scripts': [
             'interface = evolo_captain_interface.evolo_captain_interface:main',
+            'gps_relay = evolo_captain_interface.gps_relay:main',
         ],
     },
 )
