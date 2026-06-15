@@ -43,7 +43,7 @@ class SbgJsonPublisher(Node):
 
         self.json_pub = self.create_publisher(
             String,
-            '/evolo/captain/test',
+            '/evolo/captain/to',
             10)
 
         self.create_timer(0.1, self.publish_json)
