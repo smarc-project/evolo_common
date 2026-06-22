@@ -16,6 +16,9 @@
   <depend>std_msgs</depend>
   <depend>evolo_msgs</depend>
   <depend>z1_pro_msgs</depend>
+  <depend>yolo_msgs</depend>
+  <depend>tf2_ros</depend>
+  <depend>geometry_msgs</depend>
 
   <export>
     <build_type>ament_cmake</build_type>
