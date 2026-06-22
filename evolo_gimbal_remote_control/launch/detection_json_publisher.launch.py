@@ -11,6 +11,10 @@ def generate_launch_description():
         'robot_name',
         default_value='evolo',
     )
+    detections_topic_arg = DeclareLaunchArgument(
+        'detections_topic',
+        default_value='/yolo/tracking',
+    )
 
     detection_json_publisher_node = Node(
         package='evolo_gimbal_remote_control',
@@ -19,7 +23,7 @@ def generate_launch_description():
         name='detection_json_publisher',
         output='screen',
         parameters=[{
-            'detections_topic': '/yolo/detections',
+            'detections_topic': LaunchConfiguration('detections_topic'),
             'json_topic':       '/evolo/waraps/sensor/camera/detection',
             'camera_frame':     'evolo/z1_optical_frame',
             'global_frame':     'evolo/odom',
@@ -31,5 +35,6 @@ def generate_launch_description():
 
     return LaunchDescription([
         robot_ns_launch_arg,
+        detections_topic_arg,
         detection_json_publisher_node,
     ])

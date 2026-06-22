@@ -22,7 +22,6 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 from rclpy.time import Time
-from rclpy.duration import Duration
 import tf2_ros
 from tf_transformations import quaternion_matrix
 from std_msgs.msg import String
@@ -30,8 +29,8 @@ from std_msgs.msg import String
 from yolo_msgs.msg import DetectionArray
 
 
-_DEFAULT_DETECTIONS_TOPIC = "/yolo/detections"
-_DEFAULT_JSON_TOPIC       = "/evolo/waraps/sensor/camera/feedback"
+_DEFAULT_DETECTIONS_TOPIC = "/yolo/tracking"
+_DEFAULT_JSON_TOPIC       = "/evolo/waraps/sensor/camera/detection"
 _DEFAULT_CAMERA_FRAME     = "evolo/z1_optical_frame"
 _DEFAULT_GLOBAL_FRAME     = "evolo/odom"
 _DEFAULT_IMAGE_WIDTH       = 1920
@@ -114,8 +113,7 @@ class DetectionJsonPublisher(Node):
             tf = self._tf_buffer.lookup_transform(
                 self._global_frame,
                 self._camera_frame,
-                Time(),                   # latest available
-                Duration(seconds=0.5),
+                Time(),  # latest available — no blocking timeout
             )
         except Exception as e:
             self.get_logger().warn(
