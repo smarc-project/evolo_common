@@ -109,11 +109,16 @@ class DetectionJsonPublisher(Node):
         Uses the latest available transform to avoid timestamp sync issues.
         Returns None if the transform is unavailable.
         """
+        if not self._tf_buffer.can_transform(
+            self._global_frame, self._camera_frame, Time()
+        ):
+            return None
+
         try:
             tf = self._tf_buffer.lookup_transform(
                 self._global_frame,
                 self._camera_frame,
-                Time(),  # latest available — no blocking timeout
+                Time(),
             )
         except Exception as e:
             self.get_logger().warn(
