@@ -63,12 +63,12 @@ class GimbalJsonPublisher(Node):
 
         payload = {
             "mode":      mode,
-            "roll":      msg.gcudata.relative_roll,
-            "pitch":     msg.gcudata.relative_pitch,
-            "yaw":       msg.gcudata.relative_yaw,
-            "latitude":  msg.geopoint_poi.latitude,
-            "longitude": msg.geopoint_poi.longitude,
-            "altitude":  msg.geopoint_poi.altitude,
+            "roll":      float(msg.gcudata.relative_roll),
+            "pitch":     float(msg.gcudata.relative_pitch),
+            "yaw":       float(msg.gcudata.relative_yaw),
+            "latitude":  float(msg.geopoint_poi.latitude),
+            "longitude": float(msg.geopoint_poi.longitude),
+            "altitude":  float(msg.geopoint_poi.altitude),
             "recording": int(msg.gcudata.recording),
         }
 
