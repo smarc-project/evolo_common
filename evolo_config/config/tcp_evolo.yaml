@@ -31,18 +31,18 @@
 
     # List all topics that are to be sent over the network interface
     topics:
-      - "/evolo/gimbal/smarc/odom"
-      - "/evolo/sensors/gimbal_camera/camera/image_raw/compressed"
-      - "/evolo/sensors/lidar/points"
-      - "/evolo/sensors/sidescan"
-      - "/evolo/sbg/gps_hdt"
-      - "/evolo/sbg/gps_pos"
-      - "/evolo/smarc/odom"
+- "/evolo/smarc/odom"
       - "/evolo/rviz/planned_path"
-      - "/evolo/rviz/twist_planned_path"
-      - "/evolo/rviz/twist_setpoint_path"
       - "/tf"
       - "/tf_static"
+      - "/evolo/smarc/geofence_polygons/rviz"
+      - "/est/out/target_prediction_path_state"
+      - "/fg_pursuit/optimized_path"
+      - "/ghost_target/path" 
+      - "/occupancyMap"
+      - "/evolo/rviz/cbfHalfplanes"
+      - "/evolo/rvizObstacles"
+      - "/yolo/dbg_image"
 
     # Defaults can be overridden for all topics
     #/evolo/sensors/lidar/points:
