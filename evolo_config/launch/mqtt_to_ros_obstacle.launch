@@ -20,7 +20,7 @@
     <param from="$(var mqtt_params_file)"/>
     <param name="mqtt.connection.port" value="$(var broker_port)"/>
     <param name="mqtt.connection.host" value="$(var broker_addr)"/>
-    <param name="mqtt.namespace" value="$(var context)/unit/$(var domain)/$(var realsim)/$(env USER nouser)_$(var robot_name)"/>
+    <param name="mqtt.namespace" value="$(var context)/unit/$(var domain)/$(var realsim)/$(var mqtt_agent_name)"/>
   </node>
 
   <node name="mqtt_to_ros_agent_publisher" pkg="mqtt_to_ros_agent" exec="mqtt_to_ros_agent_pub" output="screen">

@@ -67,8 +67,10 @@ class SbgJsonPublisher(Node):
             self.gps_stamp
         ):
             return
+        
+        #TODO check if GPS is valid
 
-        sog = math.sqrt(
+        sog = 1.943844*math.sqrt(
             self.vel_north**2 +
             self.vel_east**2
         )
