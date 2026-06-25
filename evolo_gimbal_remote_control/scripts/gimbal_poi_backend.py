@@ -388,14 +388,13 @@ class GimbalPoiBackend(Node):
         gimbal_yaw_rad = math.radians(self._last_gcu.relative_yaw)
 
         # YOLO pixel-offset correction.
-        # Sub-pixel horizontal offset from bbox centre to image boresight,
-        # projected through the FOV using the same width-normalised convention
-        # as YoloActionServer and detection_json_publisher.py:
-        #   pixel_offset = (cx - W/2) * angle_per_pixel
-        # Positive cx-offset = target right of image centre = positive yaw
-        # (same sign as gimbal_relative_yaw).
+        # In ENU (CCW-positive), turning toward a target that is RIGHT of centre
+        # means a negative (clockwise) angle correction, so the sign is inverted
+        # relative to raw pixel coordinates where positive cx means right:
+        #   pixel_offset_rad = -(cx - W/2) * angle_per_pixel
+        # Positive cx-offset = target right of image centre = CW = negative ENU.
         pixel_offset_rad = (
-            (self._last_det_cx - self._img_w / 2.0)
+            -(self._last_det_cx - self._img_w / 2.0)
             * self._angle_per_pixel
         )
 
