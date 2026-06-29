@@ -64,19 +64,18 @@ class SuccorCommandScheduler(Node):
             self.get_logger().error(f"Invalid JSON: {e} — received: {msg.data!r}")
             return
 
+        if data.get("cancel"):
+            count = len(self._scheduled)
+            self._scheduled.clear()
+            self.get_logger().info(f"Cancelled all scheduled commands ({count})")
+            return
+
         command = data.get("command", "")
         if not command:
             self.get_logger().warn("Message missing 'command' field")
             return
 
-        if data.get("cancel"):
-            if command in self._scheduled:
-                del self._scheduled[command]
-                self.get_logger().info(f"Cancelled: {command!r}")
-            else:
-                self.get_logger().warn(f"Cancel requested for unknown command: {command!r}")
-
-        elif data.get("repeating", False):
+        if data.get("repeating", False):
             period = float(data.get("period", 10.0))
             self._scheduled[command] = {"period": period, "next_at": time.monotonic() + period}
             self.get_logger().info(f"Scheduled {command!r} every {period}s")
