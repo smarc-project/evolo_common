@@ -218,7 +218,28 @@ class Camera_control_client:
                         self._node.get_logger().info(f"Set goal for {self.yolo_threshold_ac.action_type}.")
                     except Exception as e:
                         self._node.get_logger().error(f"Error sending goal to AC {self.yolo_threshold_ac.action_type} : {e}.")
-                        
+
+                except Exception as e:
+                    self._node.get_logger().error(f"Falied to set goal: {e}")
+
+            #Yolo tracking-id selection.
+            # {"track_id": <N>}      -> follow that specific tracked object
+            # {"track_id": "AUTO"}   -> automatic highest-confidence selection
+            # {"track_id": -1}       -> same as AUTO (numeric convenience)
+            # The yolo_action selector applies the lock + timeout policy; here we
+            # only forward the request to the yolo_set_tracking action server.
+            if("track_id" in self.json_cmd.keys()):
+                track_id = self.json_cmd["track_id"]
+                try:
+                    _goal = self._set_goal(self.yolo_track_id_ac, {
+                            "id": track_id
+                        })
+                    try:
+                        self.yolo_track_id_ac.send_goal(_goal)
+                        self._node.get_logger().info(f"Set goal for {self.yolo_track_id_ac.action_type}.")
+                    except Exception as e:
+                        self._node.get_logger().error(f"Error sending goal to AC {self.yolo_track_id_ac.action_type} : {e}.")
+
                 except Exception as e:
                     self._node.get_logger().error(f"Falied to set goal: {e}")
 

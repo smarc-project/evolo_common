@@ -13,10 +13,11 @@ find_package(z1_pro_msgs REQUIRED)
 
 
 # To install python nodes.
-install(PROGRAMS 
+install(PROGRAMS
   scripts/gimbal_action_client.py
   scripts/gimbal_json_publisher.py
   scripts/detection_json_publisher.py
+  scripts/gimbal_poi_backend.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
